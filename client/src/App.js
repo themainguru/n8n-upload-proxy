@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import axios from 'axios';
+import './App.css';
 
 function App() {
   const [file, setFile] = useState(null);
   const [fileName, setFileName] = useState('');
-  const [uploading, setUploading] = useState(false);
-  const [result, setResult] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [response, setResponse] = useState(null);
   const [error, setError] = useState('');
 
   const handleFileChange = (e) => {
@@ -14,7 +14,7 @@ function App() {
       setFile(selectedFile);
       setFileName(selectedFile.name);
       setError('');
-      setResult(null);
+      setResponse(null);
     }
   };
 
@@ -26,83 +26,159 @@ function App() {
     }
 
     try {
-      setUploading(true);
+      setLoading(true);
       setError('');
+      setResponse(null);
       
       const formData = new FormData();
       formData.append('file', file, file.name);
       
       // Send to our local server
-      const response = await axios.post('http://localhost:3001/upload', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
+      const response = await fetch('http://localhost:3001/api/upload', {
+        method: 'POST',
+        body: formData,
       });
       
-      setResult(response.data);
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Upload failed');
+      }
+      
+      setResponse(data);
     } catch (err) {
-      setError(err.response?.data?.error || 'Upload failed');
       console.error('Upload error:', err);
+      setError(err.message || 'An unexpected error occurred');
     } finally {
-      setUploading(false);
+      setLoading(false);
     }
   };
-
-  return (
-    <div style={{ maxWidth: '600px', margin: '0 auto', padding: '20px' }}>
-      <h1>n8n File Upload Proxy</h1>
-      <p>Select a file to upload to n8n webhook</p>
-      
-      <form onSubmit={handleSubmit}>
-        <div style={{ marginBottom: '20px' }}>
-          <input 
-            type="file" 
-            onChange={handleFileChange} 
-            disabled={uploading}
-          />
+  
+  // Helper function to render response data
+  const renderResponseData = () => {
+    if (!response) return null;
+    
+    const { data, filename, fileType } = response;
+    
+    // Handle cases where we have parsed JSON output from n8n
+    const parsedOutput = data.parsedOutput || {};
+    const coverage = parsedOutput.coverage || '';
+    const fileTypeInfo = parsedOutput.file_type || '';
+    const notes = parsedOutput.notes || '';
+    
+    // Check if there's an output string from n8n but not parsed
+    const rawOutput = data.output || '';
+    
+    // Check for threadId (used by some n8n workflows)
+    const threadId = data.threadId || '';
+    
+    return (
+      <div className="response-container">
+        <div className="file-info">
+          <h3>File Information</h3>
+          <p><strong>Filename:</strong> {filename}</p>
+          <p><strong>Type:</strong> {fileType}</p>
         </div>
         
-        {fileName && (
-          <div style={{ marginBottom: '20px' }}>
-            <strong>Selected file:</strong> {fileName}
+        {(coverage || fileTypeInfo || notes) && (
+          <div className="analysis-results">
+            <h3>Analysis Results</h3>
+            {coverage && <p><strong>Coverage:</strong> {coverage}</p>}
+            {fileTypeInfo && <p><strong>File Type:</strong> {fileTypeInfo}</p>}
+            {notes && (
+              <div>
+                <p><strong>Notes:</strong></p>
+                <p className="notes-text">{notes}</p>
+              </div>
+            )}
           </div>
         )}
         
-        <button 
-          type="submit" 
-          disabled={!file || uploading}
-          style={{
-            padding: '10px 15px',
-            backgroundColor: '#4CAF50',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: !file || uploading ? 'not-allowed' : 'pointer'
-          }}
-        >
-          {uploading ? 'Uploading...' : 'Upload to n8n'}
-        </button>
-      </form>
-      
-      {error && (
-        <div style={{ color: 'red', marginTop: '20px' }}>
-          <strong>Error:</strong> {error}
+        {threadId && (
+          <div className="thread-info">
+            <p><strong>Thread ID:</strong> {threadId}</p>
+          </div>
+        )}
+        
+        {rawOutput && !parsedOutput.file_type && (
+          <div className="raw-output">
+            <h3>Raw Response</h3>
+            <pre>{rawOutput}</pre>
+          </div>
+        )}
+        
+        <div className="json-view">
+          <h3>Complete Response</h3>
+          <pre>{JSON.stringify(data, null, 2)}</pre>
         </div>
-      )}
+      </div>
+    );
+  };
+
+  return (
+    <div className="app-container">
+      <header className="app-header">
+        <h1>n8n File Upload Proxy</h1>
+        <p>Upload files to n8n webhook with proper filenames and MIME types</p>
+      </header>
       
-      {result && (
-        <div style={{ marginTop: '20px' }}>
-          <h3>Upload Result:</h3>
-          <pre style={{ 
-            backgroundColor: '#f4f4f4', 
-            padding: '10px', 
-            borderRadius: '4px',
-            overflowX: 'auto'
-          }}>
-            {JSON.stringify(result, null, 2)}
-          </pre>
-        </div>
-      )}
+      <main className="app-main">
+        <section className="upload-section">
+          <form onSubmit={handleSubmit} className="upload-form">
+            <div className="file-input-container">
+              <label className="file-input-label">
+                <span>Select File</span>
+                <input 
+                  type="file" 
+                  onChange={handleFileChange} 
+                  disabled={loading}
+                  className="file-input"
+                />
+              </label>
+              
+              {fileName && (
+                <div className="selected-file">
+                  <span className="file-icon">📄</span>
+                  <span className="file-name">{fileName}</span>
+                </div>
+              )}
+            </div>
+            
+            <button 
+              type="submit" 
+              disabled={!file || loading}
+              className={`upload-button ${loading ? 'loading' : ''}`}
+            >
+              {loading ? (
+                <>
+                  <span className="spinner"></span>
+                  <span>Uploading...</span>
+                </>
+              ) : (
+                'Upload to n8n'
+              )}
+            </button>
+          </form>
+          
+          {error && (
+            <div className="error-message">
+              <span className="error-icon">⚠️</span>
+              <span>{error}</span>
+            </div>
+          )}
+        </section>
+        
+        {response && (
+          <section className="results-section">
+            <h2>Upload Results</h2>
+            {renderResponseData()}
+          </section>
+        )}
+      </main>
+      
+      <footer className="app-footer">
+        <p>n8n Upload Proxy &copy; {new Date().getFullYear()}</p>
+      </footer>
     </div>
   );
 }

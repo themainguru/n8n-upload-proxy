@@ -12,6 +12,9 @@ const port = 3001;
 // Configure CORS
 app.use(cors());
 
+// Parse JSON bodies
+app.use(express.json());
+
 // Configure multer for file uploads
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -20,11 +23,17 @@ const upload = multer({
   },
 });
 
+// API Routes
+const apiRoutes = express.Router();
+
 // Upload endpoint
-app.post('/upload', upload.single('file'), async (req, res) => {
+apiRoutes.post('/upload', upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded' });
+      return res.status(400).json({ 
+        success: false, 
+        error: 'No file uploaded' 
+      });
     }
 
     // Log the incoming file details
@@ -64,37 +73,103 @@ app.post('/upload', upload.single('file'), async (req, res) => {
       });
       
       console.log('n8n response status:', n8nResponse.status);
-      console.log('n8n response headers:', n8nResponse.headers);
       
       if (n8nResponse.status >= 200 && n8nResponse.status < 300) {
-        console.log('n8n response data:', n8nResponse.data);
+        // Parse JSON response if available
+        let responseData = n8nResponse.data;
+        
+        // Some successful requests might return empty data
+        if (!responseData) {
+          responseData = { message: 'File processed successfully (no detailed response)' };
+        }
+        
+        // For responses that contain stringified JSON in 'output' field (a common n8n pattern)
+        if (responseData.output && typeof responseData.output === 'string') {
+          try {
+            // Check if the output is JSON formatted within markdown code blocks
+            if (responseData.output.includes('```json')) {
+              const jsonMatch = responseData.output.match(/```json\s*([\s\S]*?)\s*```/);
+              if (jsonMatch && jsonMatch[1]) {
+                const parsedOutput = JSON.parse(jsonMatch[1]);
+                responseData.parsedOutput = parsedOutput;
+              }
+            } else if (responseData.output.startsWith('{') && responseData.output.endsWith('}')) {
+              // Direct JSON string
+              const parsedOutput = JSON.parse(responseData.output);
+              responseData.parsedOutput = parsedOutput;
+            }
+          } catch (parseError) {
+            console.log('Could not parse output as JSON:', parseError.message);
+            // Keep the original output string, just couldn't parse it
+          }
+        }
+        
         res.json({
+          success: true,
           message: 'File uploaded successfully to n8n',
-          n8nResponse: n8nResponse.data
+          data: responseData,
+          filename: req.file.originalname,
+          fileType: req.file.mimetype
         });
       } else {
         console.error('n8n error response:', n8nResponse.status, n8nResponse.data);
         res.status(n8nResponse.status).json({ 
+          success: false,
           error: `n8n returned error ${n8nResponse.status}`,
           details: n8nResponse.data
         });
       }
     } catch (n8nError) {
       console.error('n8n connection error:', n8nError.message);
+      let errorDetails = { message: n8nError.message };
+      
       if (n8nError.response) {
         console.error('n8n error status:', n8nError.response.status);
         console.error('n8n error data:', n8nError.response.data);
+        errorDetails.status = n8nError.response.status;
+        errorDetails.data = n8nError.response.data;
       }
+      
+      if (n8nError.message.includes('timeout')) {
+        return res.status(504).json({ 
+          success: false, 
+          error: 'The request to n8n took too long to process. This might happen with larger files.', 
+          details: errorDetails
+        });
+      }
+      
       res.status(500).json({ 
+        success: false, 
         error: 'Failed to connect to n8n webhook', 
-        details: n8nError.message 
+        details: errorDetails
       });
     }
   } catch (error) {
     console.error('Upload processing error:', error);
-    res.status(500).json({ error: 'Failed to process file' });
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to process file',
+      details: error.message
+    });
   }
 });
+
+// Health check endpoint
+apiRoutes.get('/health', (req, res) => {
+  res.json({ status: 'ok', message: 'Server is running' });
+});
+
+// Mount API routes
+app.use('/api', apiRoutes);
+
+// Serve static files from the React app in production
+if (process.env.NODE_ENV === 'production') {
+  app.use(express.static(path.join(__dirname, 'client/build')));
+  
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'client/build', 'index.html'));
+  });
+}
 
 app.listen(port, () => {
   console.log(`Server running at http://localhost:${port}`);
