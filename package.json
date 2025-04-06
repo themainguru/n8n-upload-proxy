@@ -1,0 +1,20 @@
+{
+  "name": "n8n-upload-proxy",
+  "version": "1.0.0",
+  "description": "Local file upload proxy for n8n",
+  "main": "server.js",
+  "scripts": {
+    "start": "concurrently \"npm run server\" \"npm run client\"",
+    "server": "node server.js",
+    "client": "cd client && npm start",
+    "install-all": "npm install && cd client && npm install"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "multer": "^1.4.5-lts.1",
+    "axios": "^1.6.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "concurrently": "^8.2.2"
+  }
+} 
