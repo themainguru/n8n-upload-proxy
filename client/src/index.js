@@ -1,66 +1,72 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { ChakraProvider, extendTheme } from '@chakra-ui/react';
+import { ConfigProvider } from 'antd';
 import App from './App';
 
-// Extend the theme with custom colors, fonts, etc.
-const theme = extendTheme({
-  colors: {
-    brand: {
-      50: '#e0f3ff',
-      100: '#b9deff',
-      200: '#8ec8ff',
-      300: '#62b3ff',
-      400: '#379eff',
-      500: '#0d85ff', // Primary color
-      600: '#0069d9',
-      700: '#004fb3',
-      800: '#00348c',
-      900: '#001a66',
-    },
-    success: {
-      500: '#38b2ac', // Teal
-    },
-    error: {
-      500: '#e53e3e', // Red
-    }
-  },
-  fonts: {
-    body: 'Inter, system-ui, sans-serif',
-    heading: 'Inter, system-ui, sans-serif',
-  },
-  styles: {
-    global: {
-      body: {
-        bg: 'gray.50',
-        color: 'gray.800',
-      }
-    }
+// Configure Apple-inspired theme
+const theme = {
+  token: {
+    colorPrimary: '#0071e3',
+    colorSuccess: '#34c759',
+    colorWarning: '#ff9f0a',
+    colorError: '#ff3b30',
+    colorInfo: '#0071e3',
+    fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Icons", "Helvetica Neue", Helvetica, Arial, sans-serif',
+    fontSize: 15,
+    borderRadius: 8,
+    wireframe: false, // For a more streamlined look
+    colorBgContainer: '#ffffff',
+    colorTextBase: '#1d1d1f',
+    colorTextSecondary: '#6e6e73',
+    colorTextTertiary: '#86868b',
+    colorBgElevated: '#ffffff',
+    colorBorder: '#d2d2d7',
   },
   components: {
     Button: {
-      baseStyle: {
-        fontWeight: '500',
-        borderRadius: 'md',
-      },
-      variants: {
-        solid: {
-          bg: 'brand.500',
-          color: 'white',
-          _hover: {
-            bg: 'brand.600',
-          },
-        },
-      },
+      borderRadius: 22,
+      controlHeight: 44,
+      fontSize: 17,
+      colorPrimary: '#0071e3',
+      defaultBorderColor: '#d2d2d7',
+    },
+    Card: {
+      borderRadius: 18,
+      boxShadow: '0 4px 24px rgba(0, 0, 0, 0.04)',
+      colorBorderSecondary: 'transparent',
+    },
+    Input: {
+      borderRadius: 8,
+    },
+    Tag: {
+      borderRadius: 12,
+    },
+    Collapse: {
+      borderRadius: 14,
     },
   },
-});
+};
+
+// Insert global styles for the body
+const style = document.createElement('style');
+style.innerHTML = `
+  body {
+    margin: 0;
+    padding: 0;
+    background-color: #fbfbfd;
+    color: #1d1d1f;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Icons", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+`;
+document.head.appendChild(style);
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>
-    <ChakraProvider theme={theme}>
+    <ConfigProvider theme={theme}>
       <App />
-    </ChakraProvider>
+    </ConfigProvider>
   </React.StrictMode>
 ); 

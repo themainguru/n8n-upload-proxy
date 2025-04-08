@@ -60,16 +60,23 @@ apiRoutes.post('/upload', upload.single('file'), async (req, res) => {
       size: req.file.size
     });
 
+    // Print the timeout value to verify it's correct
+    const timeoutMs = 120000; // 2 minutes in milliseconds
+    console.log(`Setting axios timeout to: ${timeoutMs}ms (2 minutes)`);
+
     try {
       // Forward to n8n webhook
       const n8nResponse = await axios.post(process.env.N8N_WEBHOOK_URL, formData, {
         headers: {
           ...formData.getHeaders(),
-          'Accept': 'application/json'
+          'Accept': 'application/json',
+          'Connection': 'keep-alive'
         },
-        // Add timeout and more detailed error handling
-        timeout: 30000,
-        validateStatus: false
+        // Increase timeout to 2 minutes (120000ms) for longer workflows
+        timeout: timeoutMs,
+        validateStatus: false,
+        maxContentLength: Infinity,
+        maxBodyLength: Infinity
       });
       
       console.log('n8n response status:', n8nResponse.status);

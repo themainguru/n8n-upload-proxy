@@ -1,33 +1,30 @@
 import React, { useState } from 'react';
-import {
-  Box,
-  Button,
-  Container,
-  Flex,
-  Heading,
-  Text,
-  VStack,
-  HStack,
-  useToast,
-  Icon,
-  FormControl,
-  FormLabel,
-  Spinner,
-  Badge,
-  Divider,
-  Code,
-  useColorModeValue,
-  Card,
-  CardHeader,
-  CardBody,
-  SimpleGrid,
-  Accordion,
-  AccordionItem,
-  AccordionButton,
-  AccordionPanel,
-  AccordionIcon,
-} from '@chakra-ui/react';
-import { FiUpload, FiFile, FiCheck, FiAlertTriangle } from 'react-icons/fi';
+import { 
+  Layout, 
+  Typography, 
+  Upload, 
+  Button, 
+  Card, 
+  Spin, 
+  message, 
+  Divider, 
+  Tag, 
+  Row, 
+  Col, 
+  Alert, 
+  Collapse, 
+  Space 
+} from 'antd';
+import { 
+  UploadOutlined, 
+  FileOutlined
+} from '@ant-design/icons';
+import 'antd/dist/reset.css';
+
+const { Content, Footer } = Layout;
+const { Title, Text, Paragraph } = Typography;
+const { Panel } = Collapse;
+const { Dragger } = Upload;
 
 function App() {
   const [file, setFile] = useState(null);
@@ -35,41 +32,36 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [response, setResponse] = useState(null);
   const [error, setError] = useState('');
-  const toast = useToast();
+  const [processingStatus, setProcessingStatus] = useState('');
+  const [progressPercent, setProgressPercent] = useState(0);
   
-  const bgColor = useColorModeValue('white', 'gray.800');
-  const borderColor = useColorModeValue('gray.200', 'gray.700');
-
-  const handleFileChange = (e) => {
-    const selectedFile = e.target.files[0];
-    if (selectedFile) {
+  const handleFileChange = (info) => {
+    if (info.file && info.file.originFileObj) {
+      const selectedFile = info.file.originFileObj;
       setFile(selectedFile);
       setFileName(selectedFile.name);
       setError('');
       setResponse(null);
       
-      toast({
-        title: 'File selected',
-        description: `${selectedFile.name} (${(selectedFile.size / 1024).toFixed(2)} KB)`,
-        status: 'info',
-        duration: 3000,
-        isClosable: true,
-        position: 'top',
+      message.info({
+        content: `File selected: ${selectedFile.name} (${(selectedFile.size / 1024).toFixed(2)} KB)`,
+        style: {
+          marginTop: '20px',
+          borderRadius: '8px',
+        },
       });
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async () => {
     if (!file) {
       setError('Please select a file');
-      toast({
-        title: 'No file selected',
-        description: 'Please select a file to upload',
-        status: 'warning',
-        duration: 3000,
-        isClosable: true,
-        position: 'top',
+      message.warning({
+        content: 'Please select a file to upload',
+        style: {
+          marginTop: '20px',
+          borderRadius: '8px',
+        },
       });
       return;
     }
@@ -78,43 +70,117 @@ function App() {
       setLoading(true);
       setError('');
       setResponse(null);
+      setProcessingStatus('Uploading file...');
+      setProgressPercent(10);
       
       const formData = new FormData();
       formData.append('file', file, file.name);
       
-      // Send to our local server
-      const response = await fetch('http://localhost:3001/api/upload', {
-        method: 'POST',
-        body: formData,
-      });
+      // Add timeout handling for long-running processes
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => {
+        // Don't abort, just update UI after 10 seconds
+        setProcessingStatus('Processing file (this may take a while)...');
+        setProgressPercent(50);
+      }, 10000);
       
-      const data = await response.json();
+      // After 30 seconds, update again but still wait
+      const longTimeoutId = setTimeout(() => {
+        setProcessingStatus('Still processing (large files take longer)...');
+        setProgressPercent(75);
+      }, 30000);
       
-      if (!response.ok) {
-        throw new Error(data.error || 'Upload failed');
+      // After 100 seconds show a different message but keep waiting
+      const veryLongTimeoutId = setTimeout(() => {
+        setProcessingStatus('Processing a complex document (almost done)...');
+        setProgressPercent(90);
+      }, 100000);
+      
+      try {
+        // Send to our local server
+        const response = await fetch('http://localhost:3001/api/upload', {
+          method: 'POST',
+          body: formData,
+          signal: controller.signal,
+          // Add timeout handling directly in fetch
+          headers: {
+            'Connection': 'keep-alive',
+          },
+        });
+        
+        // Clear timeouts since we got a response
+        clearTimeout(timeoutId);
+        clearTimeout(longTimeoutId);
+        clearTimeout(veryLongTimeoutId);
+        
+        // Check if the response is valid
+        if (!response.ok) {
+          const data = await response.json().catch(() => ({}));
+          
+          if (response.status === 504) {
+            // Gateway timeout, but file might still be processing
+            throw new Error('The operation timed out. Your file is still being processed but might take longer than expected.');
+          } else if (response.status === 404) {
+            throw new Error('The n8n webhook is not active. Please make sure the workflow is active in n8n and try again.');
+          } else if (response.status === 520) {
+            throw new Error('There was a connection issue with the n8n server. Please try again later.');
+          } else {
+            throw new Error(data.error || `Upload failed with status ${response.status}`);
+          }
+        }
+        
+        const data = await response.json();
+        
+        setProgressPercent(100);
+        setProcessingStatus('Complete!');
+        setResponse(data);
+        message.success({
+          content: 'File has been processed successfully',
+          style: {
+            marginTop: '20px',
+            borderRadius: '8px',
+          },
+        });
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        clearTimeout(longTimeoutId);
+        clearTimeout(veryLongTimeoutId);
+        
+        console.error('Fetch error:', fetchError);
+        
+        if (fetchError.name === 'AbortError') {
+          throw new Error('Request was aborted due to timeout. Try a smaller file or try again later.');
+        } else if (fetchError.message === 'NetworkError when attempting to fetch resource.') {
+          // Check if server is running by making a lightweight request
+          try {
+            const serverCheck = await fetch('http://localhost:3001/api/health', { 
+              method: 'GET',
+              signal: AbortSignal.timeout(2000) // 2 second timeout for health check
+            });
+            if (serverCheck.ok) {
+              throw new Error('Network error - server is running but the file upload failed. Try a smaller file.');
+            } else {
+              throw new Error('Network error - server is running but returned an error. Please check the logs.');
+            }
+          } catch (healthCheckError) {
+            throw new Error('Network error - server is not responding. Ensure the server is running at http://localhost:3001');
+          }
+        } else {
+          throw fetchError;
+        }
       }
-      
-      setResponse(data);
-      
-      toast({
-        title: 'Upload successful',
-        description: 'File has been processed successfully',
-        status: 'success',
-        duration: 5000,
-        isClosable: true,
-        position: 'top',
-      });
     } catch (err) {
       console.error('Upload error:', err);
       setError(err.message || 'An unexpected error occurred');
+      setProcessingStatus('');
+      setProgressPercent(0);
       
-      toast({
-        title: 'Upload failed',
-        description: err.message || 'An unexpected error occurred',
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
-        position: 'top',
+      message.error({
+        content: err.message || 'An unexpected error occurred',
+        style: {
+          marginTop: '20px',
+          borderRadius: '8px',
+        },
       });
     } finally {
       setLoading(false);
@@ -152,177 +218,316 @@ function App() {
   };
 
   const responseData = extractDataFromResponse();
+  
+  const uploadProps = {
+    name: 'file',
+    multiple: false,
+    beforeUpload: (file) => {
+      handleFileChange({ file: { originFileObj: file } });
+      return false; // Prevent auto upload
+    },
+    showUploadList: false,
+    accept: '*/*',
+  };
+
+  // Apple-inspired styles
+  const appStyles = {
+    layout: {
+      minHeight: '100vh',
+      background: '#fbfbfd', // Apple's subtle background color
+    },
+    content: {
+      padding: '48px 24px',
+      maxWidth: '980px', // Apple's typical content width
+      margin: '0 auto',
+    },
+    header: {
+      textAlign: 'center',
+      marginBottom: '48px',
+    },
+    headerTitle: {
+      fontSize: '40px',
+      fontWeight: '600',
+      lineHeight: '1.1',
+      letterSpacing: '-0.015em',
+      color: '#1d1d1f',
+      margin: '0 0 8px 0',
+    },
+    headerSubtitle: {
+      fontSize: '21px',
+      lineHeight: '1.381',
+      fontWeight: '400',
+      letterSpacing: '0.011em',
+      color: '#6e6e73',
+    },
+    card: {
+      borderRadius: '18px',
+      boxShadow: '0 4px 24px rgba(0, 0, 0, 0.04)',
+      border: 'none',
+      overflow: 'hidden',
+      marginBottom: '24px',
+    },
+    cardTitle: {
+      fontSize: '24px',
+      fontWeight: '600',
+      lineHeight: '1.1667',
+      letterSpacing: '0.009em',
+      color: '#1d1d1f',
+    },
+    uploadArea: {
+      borderRadius: '14px',
+      border: '1px dashed #d2d2d7',
+      background: '#ffffff',
+      transition: 'all 0.2s ease',
+      padding: '24px',
+      cursor: 'pointer',
+      minHeight: '250px',
+      display: 'flex',
+      flexDirection: 'column',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    uploadButton: {
+      height: '44px',
+      borderRadius: '22px',
+      fontWeight: '500',
+      fontSize: '17px',
+      background: '#0071e3',
+      border: 'none',
+      boxShadow: 'none',
+    },
+    footer: {
+      background: '#f5f5f7',
+      padding: '17px 0',
+      color: '#86868b',
+      fontSize: '12px',
+      textAlign: 'center',
+      borderTop: '1px solid #d2d2d7',
+    },
+    tag: {
+      borderRadius: '18px',
+      padding: '4px 12px',
+      fontWeight: '500',
+    },
+    resultItem: {
+      marginBottom: '16px',
+    },
+    resultLabel: {
+      fontSize: '14px',
+      color: '#6e6e73',
+      marginBottom: '4px',
+    },
+    resultValue: {
+      fontSize: '17px',
+      color: '#1d1d1f',
+      fontWeight: '500',
+      wordBreak: 'break-word',
+      overflowWrap: 'break-word',
+    },
+    collapse: {
+      borderRadius: '14px',
+      overflow: 'hidden',
+      borderColor: '#d2d2d7',
+    },
+    pre: {
+      background: '#f5f5f7',
+      padding: '16px',
+      borderRadius: '8px',
+      fontSize: '14px',
+      fontFamily: 'SF Mono, Menlo, monospace',
+      overflowX: 'auto',
+    },
+  };
 
   return (
-    <Box minHeight="100vh" py={5}>
-      <Container maxW="container.md">
-        <VStack spacing={8} align="stretch">
-          {/* Header */}
-          <Flex direction="column" alignItems="center" textAlign="center">
-            <Heading as="h1" size="xl" mb={2} color="brand.600">n8n Upload Proxy</Heading>
-            <Text color="gray.600">Upload files to n8n webhooks with correct filename and MIME type</Text>
-          </Flex>
-          
+    <Layout style={appStyles.layout}>
+      <Content style={appStyles.content}>
+        {error && (
+          <Alert
+            message="Error"
+            description={error}
+            type="error"
+            showIcon
+            style={{ marginBottom: 32, borderRadius: '14px' }}
+            closable
+          />
+        )}
+        
+        <div style={appStyles.header}>
+          <div style={appStyles.headerTitle}>n8n Upload Proxy</div>
+          <div style={appStyles.headerSubtitle}>
+            Upload files to n8n webhooks with correct filename and MIME type
+          </div>
+        </div>
+        
+        <Space direction="vertical" size="large" style={{ width: '100%' }}>
           {/* Upload Card */}
-          <Card bg={bgColor} borderWidth="1px" borderColor={borderColor} borderRadius="lg" overflow="hidden" boxShadow="sm">
-            <CardHeader pb={0}>
-              <Heading size="md">File Upload</Heading>
-            </CardHeader>
-            
-            <CardBody>
-              <VStack spacing={5} align="stretch">
-                <FormControl>
-                  <FormLabel htmlFor="file-upload" cursor="pointer">
-                    <Flex 
-                      direction="column" 
-                      align="center" 
-                      justify="center" 
-                      p={6} 
-                      borderWidth="1px" 
-                      borderRadius="md" 
-                      borderStyle="dashed" 
-                      borderColor={file ? "brand.500" : "gray.300"}
-                      bg={file ? "brand.50" : "transparent"}
-                      _hover={{ borderColor: "brand.400", bg: "gray.50" }}
-                      transition="all 0.2s"
+          <Card 
+            title={<span style={appStyles.cardTitle}>File Upload</span>}
+            style={appStyles.card}
+            headStyle={{ borderBottom: 'none', paddingBottom: 0 }}
+            bodyStyle={{ padding: '20px 24px 24px' }}
+          >
+            <Space direction="vertical" style={{ width: '100%' }} size="large">
+              <Dragger 
+                {...uploadProps} 
+                disabled={loading}
+                style={appStyles.uploadArea}
+                height={null}
+              >
+                {file ? (
+                  <div style={{ padding: '16px' }}>
+                    <FileOutlined style={{ fontSize: 48, color: '#0071e3', marginBottom: 16 }} />
+                    <Paragraph 
+                      strong 
+                      style={{ 
+                        fontSize: '17px', 
+                        color: '#1d1d1f',
+                        wordBreak: 'break-word',
+                        maxWidth: '100%',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        margin: '0 0 8px 0'
+                      }}
                     >
-                      {file ? (
-                        <VStack spacing={2}>
-                          <Icon as={FiFile} w={8} h={8} color="brand.500" />
-                          <Text fontWeight="medium" color="brand.700" noOfLines={1}>{fileName}</Text>
-                          <Text fontSize="sm" color="gray.500">
-                            {(file.size / 1024).toFixed(2)} KB • {file.type || 'Unknown type'}
-                          </Text>
-                          <Badge colorScheme="green">Ready to upload</Badge>
-                        </VStack>
-                      ) : (
-                        <VStack spacing={2}>
-                          <Icon as={FiUpload} w={8} h={8} color="gray.400" />
-                          <Text fontWeight="medium">Drag file here or click to browse</Text>
-                          <Text fontSize="sm" color="gray.500">Support for CSV, Excel, PDF, etc.</Text>
-                        </VStack>
-                      )}
-                    </Flex>
-                    <input
-                      id="file-upload"
-                      type="file"
-                      onChange={handleFileChange}
-                      style={{ display: 'none' }}
-                      disabled={loading}
-                    />
-                  </FormLabel>
-                </FormControl>
-                
-                <Button
-                  colorScheme="brand"
-                  size="md"
-                  isLoading={loading}
-                  loadingText="Uploading..."
-                  leftIcon={loading ? <Spinner size="sm" /> : <FiUpload />}
-                  onClick={handleSubmit}
-                  isDisabled={!file || loading}
-                  width="100%"
-                >
-                  Upload to n8n
-                </Button>
-                
-                {error && (
-                  <Flex align="center" bg="red.50" p={3} borderRadius="md" color="red.600">
-                    <Icon as={FiAlertTriangle} mr={2} />
-                    <Text fontSize="sm">{error}</Text>
-                  </Flex>
+                      {fileName}
+                    </Paragraph>
+                    <Text style={{ 
+                      fontSize: '15px', 
+                      color: '#6e6e73',
+                      display: 'block',
+                      marginBottom: '12px'
+                    }}>
+                      {(file.size / 1024).toFixed(2)} KB • {file.type || 'Unknown type'}
+                    </Text>
+                    <div>
+                      <Tag color="#0071e3" style={appStyles.tag}>Ready to upload</Tag>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ padding: '32px 16px' }}>
+                    <UploadOutlined style={{ fontSize: 48, color: '#0071e3', marginBottom: 16 }} />
+                    <Paragraph style={{ fontSize: '19px', fontWeight: 500, color: '#1d1d1f', marginBottom: 8 }}>
+                      Drag file here or click to browse
+                    </Paragraph>
+                    <Paragraph style={{ fontSize: '15px', color: '#6e6e73' }}>
+                      <Button type="link" style={{ color: '#0071e3', padding: 0, fontWeight: 500 }}>
+                        Click to select a file
+                      </Button> or drop it here
+                    </Paragraph>
+                  </div>
                 )}
-              </VStack>
-            </CardBody>
+              </Dragger>
+              
+              <Button
+                type="primary"
+                icon={loading ? <Spin size="small" style={{ marginRight: 8 }} /> : null}
+                onClick={handleSubmit}
+                disabled={!file || loading}
+                loading={loading}
+                block
+                style={appStyles.uploadButton}
+              >
+                {loading ? processingStatus || 'Uploading...' : 'Upload to n8n'}
+              </Button>
+              
+              {loading && (
+                <div style={{ marginTop: 16 }}>
+                  <div style={{ 
+                    width: '100%', 
+                    height: '4px', 
+                    background: '#e5e5e5', 
+                    borderRadius: '2px', 
+                    overflow: 'hidden' 
+                  }}>
+                    <div style={{
+                      height: '100%',
+                      width: `${progressPercent}%`,
+                      background: '#0071e3',
+                      transition: 'width 0.5s ease'
+                    }} />
+                  </div>
+                  <div style={{ 
+                    fontSize: '14px', 
+                    color: '#6e6e73', 
+                    marginTop: '8px',
+                    textAlign: 'center'
+                  }}>
+                    {processingStatus || 'Processing...'}
+                  </div>
+                </div>
+              )}
+            </Space>
           </Card>
           
           {/* Results Section */}
           {responseData && (
-            <Card bg={bgColor} borderWidth="1px" borderColor={borderColor} borderRadius="lg" overflow="hidden" boxShadow="sm">
-              <CardHeader pb={0}>
-                <Flex align="center">
-                  <Icon as={FiCheck} color="green.500" mr={2} />
-                  <Heading size="md">Analysis Results</Heading>
-                </Flex>
-              </CardHeader>
-              
-              <CardBody>
-                <VStack spacing={4} align="stretch">
-                  <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
-                    <Box p={4} borderWidth="1px" borderRadius="md" borderColor={borderColor}>
-                      <Text fontWeight="bold" fontSize="sm" color="gray.500" mb={1}>Filename</Text>
-                      <Text fontWeight="medium">{responseData.filename}</Text>
-                    </Box>
-                    <Box p={4} borderWidth="1px" borderRadius="md" borderColor={borderColor}>
-                      <Text fontWeight="bold" fontSize="sm" color="gray.500" mb={1}>File Type</Text>
-                      <Text fontWeight="medium">{responseData.fileType}</Text>
-                    </Box>
-                    
+            <Card 
+              title={<span style={appStyles.cardTitle}>Analysis Results</span>}
+              style={appStyles.card}
+              headStyle={{ borderBottom: 'none', paddingBottom: 0 }}
+              bodyStyle={{ padding: '20px 24px 24px' }}
+            >
+              <Spin spinning={loading}>
+                <Space direction="vertical" style={{ width: '100%' }} size="large">
+                  <Row gutter={[24, 24]}>
+                    <Col xs={24} sm={12} style={appStyles.resultItem}>
+                      <div style={appStyles.resultLabel}>Filename</div>
+                      <div style={appStyles.resultValue}>{responseData.filename}</div>
+                    </Col>
+                    <Col xs={24} sm={12} style={appStyles.resultItem}>
+                      <div style={appStyles.resultLabel}>File Type</div>
+                      <div style={appStyles.resultValue}>{responseData.fileType}</div>
+                    </Col>
                     {responseData.fileTypeInfo && (
-                      <Box p={4} borderWidth="1px" borderRadius="md" borderColor={borderColor}>
-                        <Text fontWeight="bold" fontSize="sm" color="gray.500" mb={1}>Document Type</Text>
-                        <Badge colorScheme="purple" fontSize="0.9em">{responseData.fileTypeInfo}</Badge>
-                      </Box>
+                      <Col xs={24} sm={12} style={appStyles.resultItem}>
+                        <div style={appStyles.resultLabel}>Document Type</div>
+                        <div style={appStyles.resultValue}>{responseData.fileTypeInfo}</div>
+                      </Col>
                     )}
-                    
                     {responseData.coverage && (
-                      <Box p={4} borderWidth="1px" borderRadius="md" borderColor={borderColor}>
-                        <Text fontWeight="bold" fontSize="sm" color="gray.500" mb={1}>Coverage</Text>
-                        <Badge colorScheme="blue" fontSize="0.9em">{responseData.coverage}</Badge>
-                      </Box>
+                      <Col xs={24} sm={12} style={appStyles.resultItem}>
+                        <div style={appStyles.resultLabel}>Coverage</div>
+                        <div style={appStyles.resultValue}>{responseData.coverage}</div>
+                      </Col>
                     )}
-                  </SimpleGrid>
+                    {responseData.notes && (
+                      <Col span={24} style={appStyles.resultItem}>
+                        <div style={appStyles.resultLabel}>Notes</div>
+                        <div style={appStyles.resultValue}>{responseData.notes}</div>
+                      </Col>
+                    )}
+                    {responseData.threadId && (
+                      <Col span={24} style={appStyles.resultItem}>
+                        <div style={appStyles.resultLabel}>Thread ID</div>
+                        <Paragraph copyable style={appStyles.resultValue}>{responseData.threadId}</Paragraph>
+                      </Col>
+                    )}
+                  </Row>
                   
-                  {responseData.notes && (
-                    <Box p={4} borderWidth="1px" borderRadius="md" borderColor={borderColor}>
-                      <Text fontWeight="bold" fontSize="sm" color="gray.500" mb={2}>Notes</Text>
-                      <Text>{responseData.notes}</Text>
-                    </Box>
-                  )}
+                  <Divider style={{ margin: '12px 0 24px' }}>Raw Response</Divider>
                   
-                  {responseData.threadId && (
-                    <Box p={4} borderWidth="1px" borderRadius="md" borderColor={borderColor}>
-                      <Text fontWeight="bold" fontSize="sm" color="gray.500" mb={1}>Thread ID</Text>
-                      <Code p={2} borderRadius="md">{responseData.threadId}</Code>
-                    </Box>
-                  )}
-                  
-                  <Accordion allowToggle>
-                    <AccordionItem border="none">
-                      <AccordionButton bg="gray.50" borderRadius="md" _hover={{ bg: 'gray.100' }}>
-                        <Box flex="1" textAlign="left" fontWeight="medium">
-                          View Raw Response
-                        </Box>
-                        <AccordionIcon />
-                      </AccordionButton>
-                      <AccordionPanel p={4}>
-                        <Box
-                          p={3}
-                          bg="gray.50"
-                          borderRadius="md"
-                          fontSize="sm"
-                          fontFamily="monospace"
-                          overflowX="auto"
-                        >
-                          <pre>{JSON.stringify(responseData.fullData, null, 2)}</pre>
-                        </Box>
-                      </AccordionPanel>
-                    </AccordionItem>
-                  </Accordion>
-                </VStack>
-              </CardBody>
+                  <Collapse style={appStyles.collapse} bordered={false}>
+                    <Panel 
+                      header={<span style={{ fontSize: '15px', fontWeight: 500 }}>View Raw Data</span>} 
+                      key="1"
+                    >
+                      <pre style={appStyles.pre}>
+                        {JSON.stringify(responseData.fullData, null, 2)}
+                      </pre>
+                    </Panel>
+                  </Collapse>
+                </Space>
+              </Spin>
             </Card>
           )}
-          
-          {/* Footer */}
-          <Flex justifyContent="center" pt={4}>
-            <Text fontSize="sm" color="gray.500">
-              n8n Upload Proxy &copy; {new Date().getFullYear()}
-            </Text>
-          </Flex>
-        </VStack>
-      </Container>
-    </Box>
+        </Space>
+      </Content>
+      
+      <Footer style={appStyles.footer}>
+        n8n Upload Proxy © {new Date().getFullYear()}
+      </Footer>
+    </Layout>
   );
 }
 
