@@ -230,15 +230,15 @@ function App() {
     accept: '*/*',
   };
 
-  // Apple-inspired styles
+  // Vertical Fox-inspired styles
   const appStyles = {
     layout: {
       minHeight: '100vh',
-      background: '#fbfbfd', // Apple's subtle background color
+      background: '#ffffff', // Clean white background
     },
     content: {
       padding: '48px 24px',
-      maxWidth: '980px', // Apple's typical content width
+      maxWidth: '1200px', // Wider content area
       margin: '0 auto',
     },
     header: {
@@ -246,40 +246,43 @@ function App() {
       marginBottom: '48px',
     },
     headerTitle: {
-      fontSize: '40px',
-      fontWeight: '600',
+      fontSize: '48px',
+      fontWeight: '700',
       lineHeight: '1.1',
-      letterSpacing: '-0.015em',
-      color: '#1d1d1f',
-      margin: '0 0 8px 0',
+      letterSpacing: '-0.02em',
+      color: '#1a1a1a',
+      margin: '0 0 16px 0',
+      background: 'linear-gradient(90deg, #FF6B6B 0%, #4ECDC4 100%)',
+      WebkitBackgroundClip: 'text',
+      WebkitTextFillColor: 'transparent',
     },
     headerSubtitle: {
-      fontSize: '21px',
-      lineHeight: '1.381',
+      fontSize: '24px',
+      lineHeight: '1.4',
       fontWeight: '400',
-      letterSpacing: '0.011em',
-      color: '#6e6e73',
+      letterSpacing: '0.01em',
+      color: '#4a4a4a',
     },
     card: {
-      borderRadius: '18px',
-      boxShadow: '0 4px 24px rgba(0, 0, 0, 0.04)',
-      border: 'none',
+      borderRadius: '16px',
+      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08)',
+      border: '1px solid #eaeaea',
       overflow: 'hidden',
       marginBottom: '24px',
     },
     cardTitle: {
-      fontSize: '24px',
+      fontSize: '28px',
       fontWeight: '600',
-      lineHeight: '1.1667',
-      letterSpacing: '0.009em',
-      color: '#1d1d1f',
+      lineHeight: '1.2',
+      letterSpacing: '-0.01em',
+      color: '#1a1a1a',
     },
     uploadArea: {
-      borderRadius: '14px',
-      border: '1px dashed #d2d2d7',
-      background: '#ffffff',
+      borderRadius: '12px',
+      border: '2px dashed #eaeaea',
+      background: '#fafafa',
       transition: 'all 0.2s ease',
-      padding: '24px',
+      padding: '32px',
       cursor: 'pointer',
       minHeight: '250px',
       display: 'flex',
@@ -288,50 +291,53 @@ function App() {
       alignItems: 'center',
     },
     uploadButton: {
-      height: '44px',
-      borderRadius: '22px',
-      fontWeight: '500',
-      fontSize: '17px',
-      background: '#0071e3',
+      height: '48px',
+      borderRadius: '24px',
+      fontWeight: '600',
+      fontSize: '16px',
+      background: 'linear-gradient(90deg, #FF6B6B 0%, #4ECDC4 100%)',
       border: 'none',
-      boxShadow: 'none',
+      boxShadow: '0 4px 12px rgba(78, 205, 196, 0.2)',
     },
     footer: {
-      background: '#f5f5f7',
-      padding: '17px 0',
-      color: '#86868b',
-      fontSize: '12px',
+      background: '#fafafa',
+      padding: '24px 0',
+      color: '#666666',
+      fontSize: '14px',
       textAlign: 'center',
-      borderTop: '1px solid #d2d2d7',
+      borderTop: '1px solid #eaeaea',
     },
     tag: {
-      borderRadius: '18px',
-      padding: '4px 12px',
-      fontWeight: '500',
+      borderRadius: '20px',
+      padding: '6px 16px',
+      fontWeight: '600',
+      background: 'linear-gradient(90deg, #FF6B6B 0%, #4ECDC4 100%)',
+      color: '#ffffff',
     },
     resultItem: {
-      marginBottom: '16px',
+      marginBottom: '20px',
     },
     resultLabel: {
       fontSize: '14px',
-      color: '#6e6e73',
-      marginBottom: '4px',
+      color: '#666666',
+      marginBottom: '6px',
+      fontWeight: '500',
     },
     resultValue: {
-      fontSize: '17px',
-      color: '#1d1d1f',
-      fontWeight: '500',
+      fontSize: '18px',
+      color: '#1a1a1a',
+      fontWeight: '600',
       wordBreak: 'break-word',
       overflowWrap: 'break-word',
     },
     collapse: {
-      borderRadius: '14px',
+      borderRadius: '12px',
       overflow: 'hidden',
-      borderColor: '#d2d2d7',
+      borderColor: '#eaeaea',
     },
     pre: {
-      background: '#f5f5f7',
-      padding: '16px',
+      background: '#fafafa',
+      padding: '20px',
       borderRadius: '8px',
       fontSize: '14px',
       fontFamily: 'SF Mono, Menlo, monospace',
@@ -354,9 +360,9 @@ function App() {
         )}
         
         <div style={appStyles.header}>
-          <div style={appStyles.headerTitle}>n8n Upload Proxy</div>
+          <div style={appStyles.headerTitle}>Vertical Fox</div>
           <div style={appStyles.headerSubtitle}>
-            Upload files to n8n webhooks with correct filename and MIME type
+            Intelligent Document Processing Platform
           </div>
         </div>
         
@@ -525,7 +531,7 @@ function App() {
       </Content>
       
       <Footer style={appStyles.footer}>
-        n8n Upload Proxy © {new Date().getFullYear()}
+        Vertical Fox © {new Date().getFullYear()} - Intelligent Document Processing
       </Footer>
     </Layout>
   );

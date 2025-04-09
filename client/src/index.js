@@ -6,43 +6,43 @@ import App from './App';
 // Configure Apple-inspired theme
 const theme = {
   token: {
-    colorPrimary: '#0071e3',
-    colorSuccess: '#34c759',
-    colorWarning: '#ff9f0a',
-    colorError: '#ff3b30',
-    colorInfo: '#0071e3',
+    colorPrimary: '#FF6B6B',
+    colorSuccess: '#4ECDC4',
+    colorWarning: '#FFD166',
+    colorError: '#EF476F',
+    colorInfo: '#118AB2',
     fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Icons", "Helvetica Neue", Helvetica, Arial, sans-serif',
-    fontSize: 15,
-    borderRadius: 8,
-    wireframe: false, // For a more streamlined look
+    fontSize: 16,
+    borderRadius: 12,
+    wireframe: false,
     colorBgContainer: '#ffffff',
-    colorTextBase: '#1d1d1f',
-    colorTextSecondary: '#6e6e73',
-    colorTextTertiary: '#86868b',
+    colorTextBase: '#1a1a1a',
+    colorTextSecondary: '#4a4a4a',
+    colorTextTertiary: '#666666',
     colorBgElevated: '#ffffff',
-    colorBorder: '#d2d2d7',
+    colorBorder: '#eaeaea',
   },
   components: {
     Button: {
-      borderRadius: 22,
-      controlHeight: 44,
-      fontSize: 17,
-      colorPrimary: '#0071e3',
-      defaultBorderColor: '#d2d2d7',
+      borderRadius: 24,
+      controlHeight: 48,
+      fontSize: 16,
+      colorPrimary: '#FF6B6B',
+      defaultBorderColor: '#eaeaea',
     },
     Card: {
-      borderRadius: 18,
-      boxShadow: '0 4px 24px rgba(0, 0, 0, 0.04)',
-      colorBorderSecondary: 'transparent',
+      borderRadius: 16,
+      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08)',
+      colorBorderSecondary: '#eaeaea',
     },
     Input: {
-      borderRadius: 8,
-    },
-    Tag: {
       borderRadius: 12,
     },
+    Tag: {
+      borderRadius: 20,
+    },
     Collapse: {
-      borderRadius: 14,
+      borderRadius: 12,
     },
   },
 };
@@ -53,8 +53,8 @@ style.innerHTML = `
   body {
     margin: 0;
     padding: 0;
-    background-color: #fbfbfd;
-    color: #1d1d1f;
+    background-color: #ffffff;
+    color: #1a1a1a;
     font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Icons", "Helvetica Neue", Helvetica, Arial, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
